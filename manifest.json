@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "Digital Activity Portal",
+  "short_name": "Activity Portal",
+  "description": "An interactive, password-protected activity portal with number puzzles, word games, matching and more — built for students.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0B2E2A",
+  "theme_color": "#0F3D3E",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Digital Activity Portal</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0F3D3E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Activity Portal">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --canopy-950:#0B2E2A;
+  --canopy-900:#0F3D3E;
+  --canopy-800:#155050;
+  --canopy-700:#1C6363;
+  --parchment:#F6E9C7;
+  --parchment-dark:#EAD6A0;
+  --ink:#1B2B27;
+  --coral:#FF6B5B;
+  --coral-dark:#E1503F;
+  --gold:#F2B705;
+  --gold-dark:#C9950A;
+  --leaf:#4FA37A;
+  --sky:#4FB0C6;
+  --card-shadow: 0 14px 34px rgba(11,46,42,0.35);
+  --radius-lg: 22px;
+  --radius-md: 14px;
+  --font-display: 'Baloo 2', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, sans-serif;
+}
+:root:not([data-theme="light"]){
+  --bg: var(--canopy-950);
+  --surface: var(--canopy-900);
+  --text: #F3ECD8;
+  --text-dim: #BFD8CF;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#EFE6C8;
+    --surface:#FBF3DC;
+    --text: var(--ink);
+    --text-dim:#4A5C55;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#EFE6C8; --surface:#FBF3DC; --text: var(--ink); --text-dim:#4A5C55;
+}
+:root[data-theme="dark"]{
+  --bg: var(--canopy-950); --surface: var(--canopy-900); --text:#F3ECD8; --text-dim:#BFD8CF;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  background: radial-gradient(circle at 20% 0%, var(--canopy-800), var(--bg) 60%);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+#app{min-height:100vh; display:flex; flex-direction:column;}
+h1,h2,h3{font-family:var(--font-display); margin:0; letter-spacing:.2px;}
+button{font-family:var(--font-body); cursor:pointer;}
+input,select,textarea{font-family:var(--font-body);}
+::-webkit-scrollbar{width:10px;}
+::-webkit-scrollbar-thumb{background:var(--canopy-700); border-radius:8px;}
+
+.screen{flex:1; display:flex; flex-direction:column; width:100%; max-width:720px; margin:0 auto; padding:20px 18px 32px; animation:fadeIn .35s ease;}
+@keyframes fadeIn{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+/* ============ Buttons ============ */
+.btn{
+  border:none; border-radius:999px; padding:13px 22px; font-weight:800; font-size:15px;
+  display:inline-flex; align-items:center; gap:8px; justify-content:center;
+  transition: transform .12s ease, box-shadow .12s ease; user-select:none;
+}
+.btn:active{transform:scale(.96);}
+.btn-primary{background:linear-gradient(135deg, var(--coral), var(--coral-dark)); color:#fff; box-shadow:0 8px 20px rgba(255,107,91,.35);}
+.btn-gold{background:linear-gradient(135deg, var(--gold), var(--gold-dark)); color:#26210a; box-shadow:0 8px 20px rgba(242,183,5,.3);}
+.btn-ghost{background:transparent; color:var(--text); border:2px solid rgba(255,255,255,.25);}
+.btn-leaf{background:linear-gradient(135deg,#63C69B, var(--leaf)); color:#08281a; box-shadow:0 8px 20px rgba(79,163,122,.3);}
+.btn:disabled{opacity:.4; cursor:not-allowed; transform:none;}
+.btn-sm{padding:8px 14px; font-size:13px; border-radius:10px;}
+.btn-icon{width:44px; height:44px; border-radius:50%; padding:0; background:rgba(255,255,255,.12); color:var(--text); border:1px solid rgba(255,255,255,.18);}
+
+/* ============ Lock screen ============ */
+.lock-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:18px; padding:24px;}
+.lock-badge{width:110px;height:110px;}
+.lock-title{font-size:30px; color:#fff;}
+.lock-sub{color:var(--text-dim); max-width:320px; font-weight:600;}
+.pin-input{
+  font-family:var(--font-display); font-size:30px; letter-spacing:10px; text-align:center;
+  width:220px; padding:14px 10px 14px 22px; border-radius:16px; border:2px solid var(--parchment-dark);
+  background:var(--parchment); color:var(--ink); outline:none;
+}
+.pin-input:focus{border-color:var(--gold);}
+.lock-error{color:var(--coral); font-weight:800; min-height:20px;}
+.lock-hint{font-size:12.5px; color:var(--text-dim); max-width:280px;}
+
+/* ============ Top bar ============ */
+.topbar{display:flex; align-items:center; justify-content:space-between; padding:4px 2px 14px;}
+.brand{display:flex; align-items:center; gap:10px;}
+.brand-mark{width:38px;height:38px; border-radius:11px; background:linear-gradient(135deg,var(--gold),var(--coral)); display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 4px 10px rgba(0,0,0,.25);}
+.brand-name{font-family:var(--font-display); font-size:17px; color:#fff; line-height:1.1;}
+.brand-name small{display:block; font-size:10.5px; font-weight:700; color:var(--text-dim); letter-spacing:.5px;}
+
+/* ============ Home / Map ============ */
+.hero{text-align:center; margin-bottom:6px;}
+.hero-canvas{width:150px;height:150px; margin:0 auto;}
+.hero h1{color:#fff; font-size:26px;}
+.hero p{color:var(--text-dim); font-weight:700; margin-top:4px;}
+.stat-row{display:flex; gap:10px; justify-content:center; margin:14px 0 20px;}
+.stat-chip{background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); border-radius:14px; padding:10px 16px; text-align:center; min-width:84px;}
+.stat-chip b{display:block; font-family:var(--font-display); font-size:20px; color:var(--gold);}
+.stat-chip span{font-size:11px; color:var(--text-dim); font-weight:700;}
+
+.path{display:flex; flex-direction:column; gap:2px; padding:8px 4px 20px; position:relative;}
+.path::before{content:"";position:absolute; left:35px; top:10px; bottom:10px; width:4px; background:repeating-linear-gradient(var(--parchment-dark) 0 10px, transparent 10px 18px); opacity:.4; border-radius:4px;}
+.isle{display:flex; align-items:center; gap:14px; padding:9px 6px; border-radius:16px; position:relative; z-index:1;}
+.isle-node{
+  width:52px;height:52px;border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-weight:700; font-size:17px; border:3px solid var(--canopy-950);
+  transition:transform .15s ease;
+}
+.isle:active .isle-node{transform:scale(.92);}
+.isle-node.done{background:linear-gradient(145deg,#7BD6A5, var(--leaf)); color:#0a2818; box-shadow:0 6px 14px rgba(79,163,122,.4);}
+.isle-node.current{background:linear-gradient(145deg,#FFD37A, var(--gold)); color:#332600; box-shadow:0 0 0 5px rgba(242,183,5,.22), 0 6px 14px rgba(242,183,5,.35); animation:pulse 1.8s infinite;}
+.isle-node.todo{background:rgba(255,255,255,.09); color:var(--text-dim); border-color:transparent;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 5px rgba(242,183,5,.22),0 6px 14px rgba(242,183,5,.35);}50%{box-shadow:0 0 0 9px rgba(242,183,5,.08),0 6px 14px rgba(242,183,5,.35);}}
+.isle-body{flex:1; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:14px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.isle-title{font-weight:800; font-size:14.5px;}
+.isle-type{font-size:11px; color:var(--text-dim); font-weight:700; text-transform:uppercase; letter-spacing:.4px;}
+.isle-check{font-size:18px;}
+
+.menu-row{display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;}
+.menu-row .btn{flex:1;}
+
+/* ============ Quiz screen ============ */
+.progress-bar{height:10px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden; margin-bottom:16px;}
+.progress-fill{height:100%; background:linear-gradient(90deg, var(--gold), var(--coral)); border-radius:999px; transition:width .35s ease;}
+.qtop{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.qtag{background:rgba(255,255,255,.1); padding:5px 12px; border-radius:999px; font-weight:800; font-size:12.5px; letter-spacing:.3px;}
+.qcounter{font-size:12.5px; color:var(--text-dim); font-weight:700;}
+
+.card-3d-wrap{perspective:1400px; flex:1; display:flex;}
+.qcard{
+  background: var(--parchment); color:var(--ink); border-radius:var(--radius-lg);
+  padding:22px 20px 20px; box-shadow:var(--card-shadow); flex:1; display:flex; flex-direction:column; gap:14px;
+  transform-style:preserve-3d; animation:flipIn .5s cubic-bezier(.2,.8,.3,1);
+  border:1px solid rgba(0,0,0,.06);
+}
+@keyframes flipIn{from{transform:rotateY(-16deg) translateX(-14px); opacity:0;} to{transform:rotateY(0) translateX(0); opacity:1;}}
+.qhead{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+.qhead h2{font-size:20px; color:var(--canopy-900);}
+.speak-btn{background:var(--canopy-900); color:#fff; border:none; width:40px;height:40px; border-radius:50%; flex:none; font-size:16px;}
+.qinstruction{font-size:13.5px; color:#5b5033; font-weight:700;}
+
+.feedback-banner{border-radius:12px; padding:10px 14px; font-weight:800; font-size:14px; display:none;}
+.feedback-banner.show{display:block; animation:fadeIn .3s ease;}
+.feedback-banner.ok{background:#DCF3E4; color:#1E6B3E;}
+.feedback-banner.bad{background:#FBE0DD; color:#A73424;}
+
+.nav-row{display:flex; gap:10px; margin-top:16px;}
+.nav-row .btn{flex:1;}
+
+/* generic input */
+.blank-input{
+  border:2px solid #D9C68B; border-radius:10px; padding:9px 10px; font-family:var(--font-display);
+  font-size:17px; text-align:center; width:64px; background:#fff; color:var(--ink);
+}
+.blank-input:focus{outline:none; border-color:var(--coral);}
+.blank-input.wide{width:auto; min-width:120px; text-align:left; font-family:var(--font-body); font-weight:700;}
+.blank-input.correct{border-color:var(--leaf); background:#EAFBF1;}
+.blank-input.wrong{border-color:var(--coral); background:#FDECEA;}
+
+/* series */
+.series-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; padding:10px 0;}
+.series-cube{
+  width:64px;height:64px; border-radius:14px; background:linear-gradient(160deg,#fff,#F1E6C4);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; font-size:16px;
+  box-shadow:0 6px 0 #C9B679, 0 8px 14px rgba(0,0,0,.15); color:var(--canopy-900);
+  transform:perspective(300px) rotateX(6deg);
+}
+
+/* columnmath */
+.colmath{align-self:center; font-family:var(--font-display); font-size:26px; text-align:right;}
+.colmath-row{display:flex; justify-content:flex-end; gap:8px; padding:2px 4px;}
+.colmath-cell{width:40px; text-align:center;}
+.colmath-op{width:26px; text-align:left; color:var(--coral-dark);}
+.colmath-line{border-top:3px solid var(--ink); margin:4px 0;}
+.colmath-blank{width:40px;}
+
+/* magic square */
+.magic-grid{display:grid; grid-template-columns:70px 70px 70px; gap:8px; justify-content:center; margin:8px auto;}
+.magic-cell{background:#fff; border:2px solid #E4D6A6; border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; font-size:18px; height:60px;}
+.magic-cell.op{background:transparent; border:none; color:var(--coral-dark);}
+.magic-cell.blank input{width:52px;}
+
+/* equation */
+.equation-row{display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; font-family:var(--font-display); font-size:24px; padding:14px 0;}
+
+/* match */
+.match-wrap{display:flex; gap:14px;}
+.match-col{flex:1; display:flex; flex-direction:column; gap:8px;}
+.match-chip{border:2px solid #E4D6A6; background:#fff; border-radius:12px; padding:10px 12px; font-weight:800; font-size:14px; text-align:center; transition:.15s;}
+.match-chip.selected{border-color:var(--gold); background:#FFF3D0;}
+.match-chip.paired{border-color:var(--leaf); background:#E9F9EF; color:#1E6B3E;}
+.match-chip.pair-a{border-color:#4FB0C6; background:#E3F6FA;}
+
+/* riddlelist / unscramble / beforeafter / shortanswer lists */
+.item-row{background:#fff; border:1px solid #EADFB8; border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:8px;}
+.item-clue{font-weight:700; font-size:14.5px;}
+.scramble-letters{display:flex; gap:6px; flex-wrap:wrap;}
+.scramble-tile{width:32px;height:32px;border-radius:8px; background:var(--canopy-900); color:#fff; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700;}
+.choice-row{display:flex; gap:8px;}
+.choice-btn{flex:1; padding:9px; border-radius:10px; border:2px solid #E4D6A6; background:#fff; font-weight:800;}
+.choice-btn.picked{border-color:var(--gold); background:#FFF3D0;}
+.mcq-opts{display:flex; flex-direction:column; gap:8px;}
+.opt-btn{text-align:left; padding:10px 12px; border-radius:10px; border:2px solid #E4D6A6; background:#fff; font-weight:700;}
+.opt-btn.picked{border-color:var(--gold); background:#FFF3D0;}
+
+/* wordfind */
+.wf-grid{display:grid; gap:3px; justify-content:center; margin:10px 0;}
+.wf-cell{width:30px;height:30px; background:#fff; border:1px solid #E4D6A6; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px;}
+.wf-words{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+.wf-word{padding:7px 12px; border-radius:999px; border:2px solid #E4D6A6; background:#fff; font-weight:800; font-size:13px;}
+.wf-word.found{background:#DCF3E4; border-color:var(--leaf); color:#1E6B3E; text-decoration:line-through;}
+
+/* ============ Result screen ============ */
+.trophy{font-size:64px; text-align:center;}
+.score-big{text-align:center; font-family:var(--font-display); font-size:44px; color:var(--gold); margin:6px 0;}
+.review-list{display:flex; flex-direction:column; gap:8px; margin-top:14px;}
+.review-row{display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:10px 14px; font-weight:700; font-size:13.5px;}
+.review-row .tag-ok{color:#7BD6A5;}
+.review-row .tag-bad{color:#FF9B8D;}
+
+/* ============ Admin ============ */
+.admin-list{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+.admin-row{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px;}
+.admin-row .meta{flex:1; min-width:0;}
+.admin-row .meta b{display:block; font-size:14px;}
+.admin-row .meta span{font-size:11.5px; color:var(--text-dim); font-weight:700; text-transform:uppercase;}
+.admin-actions{display:flex; gap:6px;}
+.field{display:flex; flex-direction:column; gap:5px; margin-bottom:12px;}
+.field label{font-size:12.5px; font-weight:800; color:var(--text-dim);}
+.field input, .field select, .field textarea{
+  background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.14); border-radius:10px; padding:10px 12px; color:var(--text); font-size:14px;
+}
+.field textarea{font-family:'SF Mono', Consolas, monospace; font-size:12.5px; min-height:220px; resize:vertical; line-height:1.5;}
+.modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; justify-content:center; z-index:50; animation:fadeIn .2s ease;}
+.modal{background:var(--surface); width:100%; max-width:720px; max-height:88vh; overflow-y:auto; border-radius:22px 22px 0 0; padding:20px 18px 28px; border:1px solid rgba(255,255,255,.1);}
+@media(min-width:760px){.modal-backdrop{align-items:center;} .modal{border-radius:22px;}}
+.modal h3{color:#fff; margin-bottom:12px;}
+.errbox{background:#FBE0DD; color:#A73424; padding:10px 12px; border-radius:10px; font-weight:700; font-size:13px; margin-bottom:10px; display:none;}
+.errbox.show{display:block;}
+.help-note{font-size:12px; color:var(--text-dim); background:rgba(255,255,255,.05); padding:10px 12px; border-radius:10px; margin-bottom:12px; line-height:1.5;}
+
+.toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--canopy-950); color:#fff; padding:12px 20px; border-radius:999px; font-weight:800; font-size:13.5px; box-shadow:0 10px 24px rgba(0,0,0,.4); z-index:100; animation:fadeIn .25s ease;}
+
+.settings-list{display:flex; flex-direction:column; gap:10px; margin-top:10px;}
+.setting-row{display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:12px 14px;}
+.setting-row b{font-size:14px;}
+.switch{width:46px;height:26px; border-radius:999px; background:rgba(255,255,255,.2); position:relative; border:none; flex:none;}
+.switch.on{background:var(--leaf);}
+.switch::after{content:"";position:absolute; top:3px; left:3px; width:20px;height:20px; background:#fff; border-radius:50%; transition:.15s;}
+.switch.on::after{left:23px;}
+
+.confetti-layer{position:fixed; inset:0; pointer-events:none; z-index:80; overflow:hidden;}
+.confetti-piece{position:absolute; top:-10px; width:9px;height:14px; opacity:.9; animation:fall linear forwards;}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg); opacity:0;}}
+
+.footer-credit{text-align:center; color:var(--text-dim); font-size:11px; padding:10px 0 2px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modalRoot"></div>
+<script>
+/* ================================================================
+   DIGITAL ACTIVITY PORTAL — data + engine
+   ================================================================ */
+
+const STORAGE_KEYS = {
+  questions: 'dap_questions_v1',
+  progress: 'dap_progress_v1',
+  settings: 'dap_settings_v1',
+  unlocked: 'dap_unlocked_v1'
+};
+
+/* ---------- default question bank, extracted from the source worksheet ---------- */
+const DEFAULT_QUESTIONS = [
+{id:1,number:"Q1",title:"Number Pattern",type:"series",instruction:"Find the missing number in the pattern.",
+  data:{items:[1287,1288,null,1290,1291], answer:1289}},
+{id:2,number:"Q2",title:"Number Pattern",type:"series",instruction:"Find the missing number in the pattern.",
+  data:{items:[1453,1452,1451,1450,null], answer:1449}},
+{id:3,number:"Q3",title:"Column Addition",type:"columnmath",instruction:"Add the two numbers.",
+  data:{op:"+", top:[9,8,5], bottom:[3,8,5], answers:[1,3,7,0]}},
+{id:4,number:"Q4",title:"Column Addition",type:"columnmath",instruction:"Add the two numbers.",
+  data:{op:"+", top:[1,0,0,8], bottom:[9,8,7], answers:[1,9,9,5]}},
+{id:5,number:"Q5",title:"Addition Square",type:"magicsquare",instruction:"Fill in the row sums, column sums, and the grand total.",
+  data:{a:24,b:8,c:12,d:6}},
+{id:6,number:"Q6",title:"Column Subtraction",type:"columnmath",instruction:"Subtract the bottom number from the top number.",
+  data:{op:"-", top:[4,5,8], bottom:[2,3], answers:[4,3,5]}},
+{id:7,number:"Q7",title:"Column Subtraction",type:"columnmath",instruction:"Subtract the bottom number from the top number.",
+  data:{op:"-", top:[9,0,0], bottom:[5,9,9], answers:[3,0,1]}},
+{id:8,number:"Q8",title:"Mixed Operations",type:"equation",instruction:"Work out the answer.",
+  data:{expr:"532 + 300 + 112", answer:944}},
+{id:9,number:"Q9",title:"Mixed Operations",type:"equation",instruction:"Work out the answer.",
+  data:{expr:"532 + 300 \u2212 112", answer:720}},
+{id:10,number:"Q10",title:"Mixed Operations",type:"equation",instruction:"Work out the answer.",
+  data:{expr:"400 \u2212 399 \u2212 1", answer:0}},
+{id:11,number:"Q11",title:"Mixed Operations",type:"equation",instruction:"Work out the answer.",
+  data:{expr:"9999 \u2212 1 + 1", answer:9999}},
+{id:12,number:"Q12",title:"Order of Operations",type:"equation",instruction:"Remember: multiply before you subtract.",
+  data:{expr:"4 \u2212 1 \u00d7 0", answer:4}},
+{id:13,number:"Q13",title:"Order of Operations",type:"equation",instruction:"Remember: multiply before you add.",
+  data:{expr:"2 \u00d7 2 + 0", answer:4}},
+{id:14,number:"Q14",title:"Time Conversion",type:"shortanswer",instruction:"Convert the units.",
+  data:{items:[{prompt:"5 Hours = ___ Minutes", answer:"300"}]}},
+{id:15,number:"Q15",title:"Time Conversion",type:"shortanswer",instruction:"Convert the units.",
+  data:{items:[{prompt:"1 Year = ___ Weeks", answer:"52"}]}},
+{id:16,number:"Q16",title:"Calendar Knowledge",type:"shortanswer",instruction:"Fill in the blank.",
+  data:{items:[{prompt:"September has ___ Days", answer:"30"}]}},
+{id:17,number:"Q17",title:"Unscramble the Words",type:"unscramble",instruction:"Rearrange the letters to spell out the word for each clue.",
+  data:{items:[
+    {clue:"A very large sea animal", scrambled:"HELWA", answer:"WHALE"},
+    {clue:"A large vehicle that carries things", scrambled:"RUCTK", answer:"TRUCK"},
+    {clue:"Our national flower", scrambled:"TLOUS", answer:"LOTUS"},
+    {clue:"Fastest animal on land", scrambled:"AHEHTCE", answer:"CHEETAH"},
+    {clue:"A shape with four equal sides", scrambled:"SAQUER", answer:"SQUARE"}
+  ]}},
+{id:18,number:"Q18",title:"Who Am I?",type:"riddlelist",instruction:"Name the profession described by each clue.",
+  data:{items:[
+    {clue:"Flies aircraft", answer:"Pilot"},
+    {clue:"Looks after your teeth", answer:"Dentist"},
+    {clue:"Stitches your clothes", answer:"Tailor"},
+    {clue:"Makes you laugh at the circus", answer:"Clown"},
+    {clue:"Serves food in a restaurant", answer:"Waiter"}
+  ]}},
+{id:19,number:"Q19",title:"Match the Animal to its Sound",type:"match",instruction:"Tap an animal, then tap the sound it makes.",
+  data:{left:["Lion","Elephant","Horse","Bird","Owl"], right:["Roar","Trumpet","Neigh","Chirp","Hoot"]}},
+{id:20,number:"Q20",title:"Combine the Words",type:"match",instruction:"Tap a Word 1, then tap the Word 2 that joins with it to make a new word.",
+  data:{left:["Swim","Sauce","Door","Farm","Honey"], right:["suit","pan","bell","house","bee"]}},
+{id:21,number:"Q21",title:"Match People to What They Do",type:"match",instruction:"Tap a person, then tap what they do.",
+  data:{left:["Farmer","Pilot","Actor","Soldier","Doctor"], right:["Ploughs","Flies","Act","Fight","Cures"]}},
+{id:22,number:"Q22",title:"Unscramble the Words",type:"unscramble",instruction:"Rearrange the letters to spell out the word for each clue.",
+  data:{items:[
+    {clue:"A period of twelve months", scrambled:"AERY", answer:"YEAR"},
+    {clue:"A covering for the face", scrambled:"KASM", answer:"MASK"},
+    {clue:"What sick people take", scrambled:"ECIMEDIN", answer:"MEDICINE"},
+    {clue:"A shape with three straight sides", scrambled:"ELTRIANG", answer:"TRIANGLE"},
+    {clue:"Protects us from rain or Sun", scrambled:"RMALAUBEL", answer:"UMBRELLA"}
+  ]}},
+{id:23,number:"Q23",title:"Before or After?",type:"beforeafter",instruction:"Choose the word that completes each sentence.",
+  data:{items:[
+    {prompt:"I brush my teeth ___ I get up.", answer:"After"},
+    {prompt:"I brush my teeth again ___ I go to bed.", answer:"Before"},
+    {prompt:"The earth becomes wet ___ it rains.", answer:"After"},
+    {prompt:"There is darkness ___ the sun rises.", answer:"Before"},
+    {prompt:"I feel fresh ___ a bath.", answer:"After"}
+  ]}},
+{id:24,number:"Q24",title:"Find the Body Parts",type:"wordfind",instruction:"Search the grid and tick off each body part you find.",
+  data:{grid:[
+    ["A","E","Y","E","E","C","D"],
+    ["T","R","F","N","W","T","H"],
+    ["E","I","M","O","U","T","H"],
+    ["E","S","B","S","K","I","E"],
+    ["T","T","L","E","G","O","O"],
+    ["H","G","Z","Y","L","I","P"],
+    ["Q","H","H","A","N","D","A"]
+  ], words:["EYE","MOUTH","LEG","LIP","HAND"]}},
+{id:25,number:"Q25",title:"Computer Units",type:"shortanswer",instruction:"Convert the data units.",
+  data:{items:[
+    {prompt:"8 Bits = ___ Byte", answer:"1"},
+    {prompt:"1 KB = ___ Bytes", answer:"1024"},
+    {prompt:"1 GB = ___ MB", answer:"1024"}
+  ]}},
+{id:26,number:"Q26",title:"General Knowledge",type:"mcq",instruction:"Choose the correct option.",
+  data:{items:[
+    {question:"The middle name of Sachin Tendulkar is", options:["Ramesh","Manohar","Gopal"], answerIndex:0},
+    {question:"A book of Maps is called", options:["Text Book","Atlas","Manual"], answerIndex:1},
+    {question:"The sound of a Dog is called", options:["Roar","Bark","Talk"], answerIndex:1}
+  ]}},
+{id:27,number:"Q27",title:"Who Am I? (Professions)",type:"riddlelist",instruction:"Name the profession described by each clue.",
+  data:{items:[
+    {clue:"A person who makes articles out of gold", answer:"Goldsmith"},
+    {clue:"A supplier of eye-glasses and lenses", answer:"Optician"},
+    {clue:"A person who sells flowers", answer:"Florist"},
+    {clue:"The chief cook in a restaurant", answer:"Chef"},
+    {clue:"A person who sells household items", answer:"Shopkeeper"},
+    {clue:"Doctor who performs operations", answer:"Surgeon"},
+    {clue:"A person who acts in plays, TV or movies", answer:"Actor"},
+    {clue:"Person who manages the library", answer:"Librarian"},
+    {clue:"Doctor who takes care of mouth and teeth", answer:"Dentist"},
+    {clue:"A person who saves someone from drowning", answer:"Lifeguard"}
+  ]}},
+{id:28,number:"Q28",title:"Analogy",type:"analogy",instruction:"Complete the analogy.",
+  data:{a:"Dice", b:"Cube", c:"Ball", answer:"Sphere"}}
+];
+
+/* ---------- persistence ---------- */
+function loadJSON(key, fallback){
+  try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch(e){ return fallback; }
+}
+function saveJSON(key, val){
+  try{ localStorage.setItem(key, JSON.stringify(val)); return true; }
+  catch(e){ return false; }
+}
+
+let QUESTIONS = loadJSON(STORAGE_KEYS.questions, null) || JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+let SETTINGS = loadJSON(STORAGE_KEYS.settings, {sound:true, speech:true, studentPin:"1234", adminPin:"admin123", theme:"auto"});
+let PROGRESS = loadJSON(STORAGE_KEYS.progress, {answers:{}, correct:{}, currentIndex:0});
+
+function persistQuestions(){ saveJSON(STORAGE_KEYS.questions, QUESTIONS); }
+function persistSettings(){ saveJSON(STORAGE_KEYS.settings, SETTINGS); }
+function persistProgress(){ saveJSON(STORAGE_KEYS.progress, PROGRESS); }
+
+/* ---------- audio ---------- */
+let audioCtx = null;
+function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return audioCtx; }
+function playTone(freqs, dur){
+  if(!SETTINGS.sound) return;
+  const ctx = ensureAudio(); if(!ctx) return;
+  freqs.forEach((f, i)=>{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = f;
+    const t0 = ctx.currentTime + i*0.09;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.18, t0+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t0); osc.stop(t0+dur+0.02);
+  });
+}
+function soundCorrect(){ playTone([523.25, 659.25, 783.99], 0.28); }
+function soundWrong(){ playTone([196, 146.8], 0.32); }
+function soundClick(){ playTone([700], 0.06); }
+function soundComplete(){ playTone([523,659,784,1046], 0.35); }
+function speak(text){
+  if(!SETTINGS.speech) return;
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.92; u.pitch = 1.05;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* ---------- confetti ---------- */
+function fireConfetti(){
+  const colors = ['#FF6B5B','#F2B705','#4FA37A','#4FB0C6','#F6E9C7'];
+  const layer = document.createElement('div');
+  layer.className = 'confetti-layer';
+  document.body.appendChild(layer);
+  for(let i=0;i<40;i++){
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = Math.random()*100+'vw';
+    p.style.background = colors[i%colors.length];
+    p.style.animationDuration = (1.6+Math.random()*1.2)+'s';
+    p.style.animationDelay = (Math.random()*0.3)+'s';
+    p.style.transform = 'rotate('+(Math.random()*360)+'deg)';
+    layer.appendChild(p);
+  }
+  setTimeout(()=>layer.remove(), 3200);
+}
+
+/* ---------- utils ---------- */
+function norm(s){ return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' '); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function shuffled(arr){ const a = arr.map((v,i)=>[v,i]); for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* ================================================================
+   STATE / ROUTER
+   ================================================================ */
+let VIEW = 'lock'; // lock | home | quiz | result | admin | settings | help
+let ADMIN_UNLOCKED = false;
+let quizIdx = PROGRESS.currentIndex || 0;
+let matchState = {}; // per-question runtime state for match/wordfind/mcq/etc keyed by qId
+
+const root = document.getElementById('app');
+
+function go(view){ VIEW = view; render(); window.scrollTo(0,0); }
+
+function render(){
+  if(VIEW==='lock') return renderLock();
+  if(VIEW==='home') return renderHome();
+  if(VIEW==='quiz') return renderQuiz();
+  if(VIEW==='result') return renderResult();
+  if(VIEW==='admin') return renderAdmin();
+  if(VIEW==='settings') return renderSettings();
+}
+
+/* ================================================================
+   LOCK SCREEN
+   ================================================================ */
+function renderLock(){
+  root.innerHTML = `
+  <div class="lock-wrap">
+    <canvas id="lockCanvas" class="lock-badge"></canvas>
+    <div>
+      <div class="lock-title">Digital Activity Portal</div>
+      <div class="lock-sub">A little expedition through puzzles, numbers and words. Enter the passcode to begin.</div>
+    </div>
+    <input id="pinField" class="pin-input" inputmode="numeric" maxlength="8" placeholder="••••" autofocus>
+    <div class="lock-error" id="lockErr"></div>
+    <button class="btn btn-gold" id="enterBtn">Enter Portal</button>
+    <div class="lock-hint">First time here? The default passcode is <b>1234</b>. You can change it later in Settings.</div>
+  </div>`;
+  initHero3D('lockCanvas', 0.9);
+  const field = document.getElementById('pinField');
+  const err = document.getElementById('lockErr');
+  function tryEnter(){
+    soundClick();
+    if(field.value === SETTINGS.studentPin || field.value === SETTINGS.adminPin){
+      err.textContent = '';
+      go('home');
+    } else {
+      err.textContent = 'That passcode is not right — try again.';
+      field.value=''; field.focus();
+      soundWrong();
+    }
+  }
+  document.getElementById('enterBtn').onclick = tryEnter;
+  field.addEventListener('keydown', e=>{ if(e.key==='Enter') tryEnter(); });
+}
+
+/* ================================================================
+   3D hero badge (three.js) — degrades silently if unavailable
+   ================================================================ */
+function initHero3D(canvasId, scale){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || typeof THREE === 'undefined') return;
+  try{
+    const size = canvas.clientWidth || 150;
+    const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+    renderer.setSize(size, size, false);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(0,0,4.2);
+    const geo = new THREE.IcosahedronGeometry(1.25, 0);
+    const mat = new THREE.MeshStandardMaterial({color:0xF2B705, flatShading:true, metalness:0.25, roughness:0.35});
+    const mesh = new THREE.Mesh(geo, mat);
+    scene.add(mesh);
+    const light1 = new THREE.DirectionalLight(0xffffff, 1.1); light1.position.set(3,4,5); scene.add(light1);
+    const light2 = new THREE.AmbientLight(0xFF6B5B, 0.55); scene.add(light2);
+    let raf;
+    function animate(){
+      mesh.rotation.y += 0.012;
+      mesh.rotation.x += 0.006;
+      renderer.render(scene, camera);
+      raf = requestAnimationFrame(animate);
+    }
+    animate();
+    canvas._raf = raf;
+  }catch(e){ /* silent degrade */ }
+}
+
+/* ================================================================
+   HOME / MAP
+   ================================================================ */
+function computeStats(){
+  const total = QUESTIONS.length;
+  const answered = Object.keys(PROGRESS.answers||{}).length;
+  const correctCount = Object.values(PROGRESS.correct||{}).filter(Boolean).length;
+  return {total, answered, correctCount};
+}
+
+function renderHome(){
+  const {total, answered, correctCount} = computeStats();
+  root.innerHTML = `
+  <div class="screen">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">🧭</div>
+        <div class="brand-name">Digital Activity Portal<small>Explorer's Edition</small></div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-icon" id="settingsBtn" title="Settings">⚙️</button>
+        <button class="btn btn-icon" id="adminBtn" title="Manage Questions">🛠️</button>
+      </div>
+    </div>
+
+    <div class="hero">
+      <canvas id="homeCanvas" class="hero-canvas"></canvas>
+      <h1>Welcome back, explorer!</h1>
+      <p>${answered>=total && total>0 ? 'You have completed every island — check your results!' : 'Journey across '+total+' activity islands.'}</p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-chip"><b>${answered}/${total}</b><span>Answered</span></div>
+      <div class="stat-chip"><b>${correctCount}</b><span>Correct</span></div>
+      <div class="stat-chip"><b>${total? Math.round(correctCount/total*100):0}%</b><span>Score</span></div>
+    </div>
+
+    <div class="menu-row">
+      <button class="btn btn-primary" id="continueBtn">${answered>0 ? '▶ Continue Journey' : '▶ Start Journey'}</button>
+      ${answered>0 ? '<button class="btn btn-ghost" id="resultsBtn">🏆 Results</button>' : ''}
+    </div>
+    ${answered>0 ? '<div class="menu-row"><button class="btn btn-ghost" id="restartBtn" style="flex:1">↺ Restart Journey</button></div>' : ''}
+
+    <h3 style="color:#fff; margin:22px 0 6px; font-size:16px;">Activity Map</h3>
+    <div class="path" id="pathWrap"></div>
+
+    <div class="footer-credit">Made for curious minds · Tap 🛠️ to add, edit or remove activities</div>
+  </div>`;
+
+  initHero3D('homeCanvas', 1);
+
+  const pathWrap = document.getElementById('pathWrap');
+  pathWrap.innerHTML = QUESTIONS.map((q, i)=>{
+    const isDone = !!(PROGRESS.answers && PROGRESS.answers[q.id]);
+    const isCurrent = i === (PROGRESS.currentIndex||0) && !isDone;
+    const cls = isDone ? 'done' : (isCurrent ? 'current' : 'todo');
+    const mark = isDone ? (PROGRESS.correct[q.id] ? '✓' : '•') : (i+1);
+    return `<div class="isle" data-idx="${i}">
+      <div class="isle-node ${cls}">${mark}</div>
+      <div class="isle-body">
+        <div>
+          <div class="isle-title">${esc(q.number)} · ${esc(q.title)}</div>
+          <div class="isle-type">${typeLabel(q.type)}</div>
+        </div>
+        <div class="isle-check">${isDone ? (PROGRESS.correct[q.id] ? '🌟' : '📝') : '➡️'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  pathWrap.querySelectorAll('.isle').forEach(el=>{
+    el.onclick = ()=>{ soundClick(); quizIdx = parseInt(el.dataset.idx); PROGRESS.currentIndex = quizIdx; persistProgress(); go('quiz'); };
+  });
+
+  document.getElementById('settingsBtn').onclick = ()=>go('settings');
+  document.getElementById('adminBtn').onclick = ()=>go('admin');
+  document.getElementById('continueBtn').onclick = ()=>{ quizIdx = findNextUnanswered(); PROGRESS.currentIndex = quizIdx; persistProgress(); go('quiz'); };
+  const rb = document.getElementById('resultsBtn'); if(rb) rb.onclick = ()=>go('result');
+  const rs = document.getElementById('restartBtn'); if(rs) rs.onclick = ()=>{
+    if(confirm('Restart your journey? This clears your answers (questions stay the same).')){
+      PROGRESS = {answers:{}, correct:{}, currentIndex:0}; persistProgress(); go('home');
+    }
+  };
+}
+
+function findNextUnanswered(){
+  for(let i=0;i<QUESTIONS.length;i++){ if(!PROGRESS.answers[QUESTIONS[i].id]) return i; }
+  return 0;
+}
+
+function typeLabel(t){
+  return ({
+    series:'Number Pattern', columnmath:'Arithmetic', magicsquare:'Puzzle Grid', equation:'Mental Math',
+    shortanswer:'Fill in the Blank', unscramble:'Word Scramble', riddlelist:'Riddle', match:'Matching',
+    beforeafter:'Sequencing', wordfind:'Word Search', mcq:'Multiple Choice', analogy:'Analogy'
+  })[t] || t;
+}
+
+/* ================================================================
+   QUIZ ENGINE
+   ================================================================ */
+function renderQuiz(){
+  const q = QUESTIONS[quizIdx];
+  if(!q){ go('home'); return; }
+  if(!matchState[q.id]) matchState[q.id] = {};
+  const total = QUESTIONS.length;
+  const pct = Math.round(((quizIdx)/total)*100);
+
+  root.innerHTML = `
+  <div class="screen">
+    <div class="topbar">
+      <button class="btn btn-icon" id="homeBtn">🏠</button>
+      <div class="qcounter">Island ${quizIdx+1} of ${total}</div>
+      <button class="btn btn-icon" id="speakBtn2" title="Read aloud">🔊</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="qtop">
+      <span class="qtag">${esc(q.number)} · ${typeLabel(q.type)}</span>
+    </div>
+    <div class="card-3d-wrap"><div class="qcard" id="qcard"></div></div>
+    <div class="feedback-banner" id="fbBanner"></div>
+    <div class="nav-row">
+      <button class="btn btn-ghost" id="prevBtn" ${quizIdx===0?'disabled':''}>← Back</button>
+      <button class="btn btn-primary" id="checkBtn">Check Answer</button>
+      <button class="btn btn-leaf" id="nextBtn">${quizIdx===total-1?'Finish 🏁':'Next →'}</button>
+    </div>
+  </div>`;
+
+  document.getElementById('homeBtn').onclick = ()=>go('home');
+  document.getElementById('speakBtn2').onclick = ()=>speak(speakableText(q));
+  document.getElementById('prevBtn').onclick = ()=>{ soundClick(); quizIdx--; PROGRESS.currentIndex=quizIdx; persistProgress(); go('quiz'); };
+  document.getElementById('nextBtn').onclick = ()=>{
+    soundClick();
+    if(quizIdx === total-1){ go('result'); }
+    else { quizIdx++; PROGRESS.currentIndex=quizIdx; persistProgress(); go('quiz'); }
+  };
+  document.getElementById('checkBtn').onclick = ()=>checkQuestion(q);
+
+  const card = document.getElementById('qcard');
+  card.innerHTML = `
+    <div class="qhead"><h2>${esc(q.title)}</h2><button class="speak-btn" id="speakBtn">🔊</button></div>
+    <div class="qinstruction">${esc(q.instruction||'')}</div>
+    <div id="qbody"></div>
+  `;
+  document.getElementById('speakBtn').onclick = ()=>speak(speakableText(q));
+  renderQuestionBody(q, document.getElementById('qbody'));
+
+  const banner = document.getElementById('fbBanner');
+  if(PROGRESS.answers[q.id]){
+    const ok = PROGRESS.correct[q.id];
+    banner.className = 'feedback-banner show ' + (ok?'ok':'bad');
+    banner.textContent = ok ? '🌟 Great job — that\'s correct!' : '📝 Recorded. Review the highlighted answers.';
+  }
+}
+
+function speakableText(q){
+  let t = q.title + '. ' + (q.instruction||'') + '. ';
+  if(q.type==='equation') t += q.data.expr;
+  else if(q.type==='analogy') t += `${q.data.a} is to ${q.data.b} as ${q.data.c} is to what?`;
+  else if(q.data.items) t += q.data.items.map(it=>it.clue||it.prompt||it.question||'').join('. ');
+  return t;
+}
+
+/* ---------- render each question type ---------- */
+function renderQuestionBody(q, el){
+  const fns = {
+    series: bodySeries, columnmath: bodyColumnMath, magicsquare: bodyMagicSquare, equation: bodyEquation,
+    shortanswer: bodyShortAnswer, unscramble: bodyUnscramble, riddlelist: bodyRiddleList,
+    match: bodyMatch, beforeafter: bodyBeforeAfter, wordfind: bodyWordFind, mcq: bodyMcq, analogy: bodyAnalogy
+  };
+  const fn = fns[q.type] || (()=>{ el.innerHTML = '<p>Unsupported question type.</p>'; });
+  fn(q, el);
+}
+
+function savedFor(qid){ return (PROGRESS.answers && PROGRESS.answers[qid]) || null; }
+
+function bodySeries(q, el){
+  const d = q.data; const saved = savedFor(q.id);
+  el.innerHTML = `<div class="series-row">${d.items.map((v,i)=>{
+    if(v===null){
+      const val = saved ? saved.value : '';
+      return `<input class="blank-input" style="width:64px;height:64px;border-radius:14px;" data-role="blank" type="number" value="${val}">`;
+    }
+    return `<div class="series-cube">${v}</div>`;
+  }).join('<div style="display:flex;align-items:center;font-family:var(--font-display);font-size:20px;color:#8a7c4d;">→</div>')}</div>`;
+  el.dataset.type = 'series';
+}
+function collectSeries(q, el){
+  const inp = el.querySelector('[data-role="blank"]');
+  return {value: inp ? inp.value : ''};
+}
+function gradeSeries(q, ans){ return norm(ans.value) === norm(q.data.answer) ? {ok:true} : {ok:false}; }
+
+function bodyColumnMath(q, el){
+  const d = q.data; const saved = savedFor(q.id);
+  const width = d.answers.length;
+  const pad = arr => { const p = width - arr.length; return Array(p).fill('').concat(arr); };
+  const topCells = pad(d.top).map(v=>`<div class="colmath-cell">${v===''?'':v}</div>`).join('');
+  const botCells = pad(d.bottom).map(v=>`<div class="colmath-cell">${v===''?'':v}</div>`).join('');
+  const blanks = d.answers.map((a,i)=>{
+    const val = saved ? saved.values[i] : '';
+    return `<div class="colmath-cell colmath-blank"><input class="blank-input" data-role="cell" data-i="${i}" type="number" value="${val}" style="width:38px;padding:6px 2px;"></div>`;
+  }).join('');
+  el.innerHTML = `<div class="colmath">
+    <div class="colmath-row"><div class="colmath-op"></div>${topCells}</div>
+    <div class="colmath-row"><div class="colmath-op">${d.op}</div>${botCells}</div>
+    <div class="colmath-line"></div>
+    <div class="colmath-row"><div class="colmath-op"></div>${blanks}</div>
+  </div>`;
+}
+function collectColumnMath(q, el){
+  const inputs = [...el.querySelectorAll('[data-role="cell"]')];
+  return {values: inputs.map(i=>i.value)};
+}
+function gradeColumnMath(q, ans){
+  const ok = q.data.answers.every((a,i)=> norm(ans.values[i]) === norm(a));
+  return {ok};
+}
+
+function bodyMagicSquare(q, el){
+  const d = q.data; const saved = savedFor(q.id);
+  const v = saved ? saved.values : ['','','','',''];
+  el.innerHTML = `<div class="magic-grid">
+    <div class="magic-cell">${d.a}</div><div class="magic-cell op">+</div><div class="magic-cell">${d.b}</div>
+    <div class="magic-cell op">=</div><div class="magic-cell blank"><input class="blank-input" data-i="0" type="number" value="${v[0]}"></div><div></div>
+    <div class="magic-cell op">+</div><div></div><div class="magic-cell op">+</div>
+    <div class="magic-cell">${d.c}</div><div class="magic-cell op">+</div><div class="magic-cell">${d.d}</div>
+    <div class="magic-cell op">=</div><div class="magic-cell blank"><input class="blank-input" data-i="1" type="number" value="${v[1]}"></div><div></div>
+    <div class="magic-cell blank"><input class="blank-input" data-i="2" type="number" value="${v[2]}"></div>
+    <div class="magic-cell op">·</div>
+    <div class="magic-cell blank"><input class="blank-input" data-i="3" type="number" value="${v[3]}"></div>
+    <div class="magic-cell op">=</div>
+    <div class="magic-cell blank"><input class="blank-input" data-i="4" type="number" value="${v[4]}"></div>
+  </div>
+  <div style="text-align:center;font-size:12px;color:#7a6d43;font-weight:700;">Fill each blank: row sums, column sums, and the grand total.</div>`;
+}
+function collectMagicSquare(q, el){
+  const inputs = [...el.querySelectorAll('input[data-i]')];
+  const values = ['','','','',''];
+  inputs.forEach(i=> values[parseInt(i.dataset.i)] = i.value);
+  return {values};
+}
+function gradeMagicSquare(q, ans){
+  const d = q.data;
+  const expected = [d.a+d.b, d.c+d.d, d.a+d.c, d.b+d.d, d.a+d.b+d.c+d.d];
+  const ok = expected.every((e,i)=> norm(ans.values[i]) === norm(e));
+  return {ok};
+}
+
+function bodyEquation(q, el){
+  const saved = savedFor(q.id);
+  el.innerHTML = `<div class="equation-row"><span>${esc(q.data.expr)}</span><span>=</span>
+    <input class="blank-input" data-role="ans" type="number" value="${saved?saved.value:''}"></div>`;
+}
+function collectEquation(q, el){ return {value: el.querySelector('[data-role="ans"]').value}; }
+function gradeEquation(q, ans){ return {ok: norm(ans.value) === norm(q.data.answer)}; }
+
+function bodyAnalogy(q, el){
+  const d = q.data; const saved = savedFor(q.id);
+  el.innerHTML = `<div class="equation-row" style="font-size:19px;">
+    <span>${esc(d.a)}</span><span>:</span><span>${esc(d.b)}</span><span style="margin:0 6px;">::</span>
+    <span>${esc(d.c)}</span><span>:</span>
+    <input class="blank-input wide" data-role="ans" type="text" placeholder="?" value="${saved?saved.value:''}">
+  </div>`;
+}
+function collectAnalogy(q, el){ return {value: el.querySelector('[data-role="ans"]').value}; }
+function gradeAnalogy(q, ans){ return {ok: norm(ans.value) === norm(q.data.answer)}; }
+
+function bodyShortAnswer(q, el){
+  const saved = savedFor(q.id);
+  const vals = saved ? saved.values : q.data.items.map(()=>'');
+  el.innerHTML = q.data.items.map((it,i)=>`
+    <div class="item-row">
+      <div class="item-clue">${esc(it.prompt)}</div>
+      <input class="blank-input wide" data-i="${i}" type="text" value="${vals[i]||''}">
+    </div>`).join('');
+}
+function collectShortAnswer(q, el){
+  const inputs = [...el.querySelectorAll('input[data-i]')];
+  const values = q.data.items.map(()=>'');
+  inputs.forEach(i=> values[parseInt(i.dataset.i)] = i.value);
+  return {values};
+}
+function gradeShortAnswer(q, ans){
+  const ok = q.data.items.every((it,i)=> norm(ans.values[i]) === norm(it.answer));
+  return {ok};
+}
+
+function bodyUnscramble(q, el){
+  const saved = savedFor(q.id);
+  const vals = saved ? saved.values : q.data.items.map(()=>'');
+  el.innerHTML = q.data.items.map((it,i)=>`
+    <div class="item-row">
+      <div class="item-clue">${i+1}. ${esc(it.clue)}</div>
+      <div class="scramble-letters">${it.scrambled.split('').map(l=>`<div class="scramble-tile">${l}</div>`).join('')}</div>
+      <input class="blank-input wide" data-i="${i}" type="text" placeholder="Your answer" value="${vals[i]||''}">
+    </div>`).join('');
+}
+function collectUnscramble(q, el){
+  const inputs = [...el.querySelectorAll('input[data-i]')];
+  const values = q.data.items.map(()=>'');
+  inputs.forEach(i=> values[parseInt(i.dataset.i)] = i.value);
+  return {values};
+}
+function gradeUnscramble(q, ans){
+  const ok = q.data.items.every((it,i)=> norm(ans.values[i]) === norm(it.answer));
+  return {ok};
+}
+
+function bodyRiddleList(q, el){
+  const saved = savedFor(q.id);
+  const vals = saved ? saved.values : q.data.items.map(()=>'');
+  el.innerHTML = q.data.items.map((it,i)=>`
+    <div class="item-row">
+      <div class="item-clue">${i+1}. ${esc(it.clue)}</div>
+      <input class="blank-input wide" data-i="${i}" type="text" placeholder="Who am I?" value="${vals[i]||''}">
+    </div>`).join('');
+}
+function collectRiddleList(q, el){
+  const inputs = [...el.querySelectorAll('input[data-i]')];
+  const values = q.data.items.map(()=>'');
+  inputs.forEach(i=> values[parseInt(i.dataset.i)] = i.value);
+  return {values};
+}
+function gradeRiddleList(q, ans){
+  const ok = q.data.items.every((it,i)=> norm(ans.values[i]) === norm(it.answer));
+  return {ok};
+}
+
+function bodyBeforeAfter(q, el){
+  const saved = savedFor(q.id);
+  const vals = saved ? saved.values : q.data.items.map(()=>null);
+  el.innerHTML = q.data.items.map((it,i)=>{
+    const parts = it.prompt.split('___');
+    return `<div class="item-row">
+      <div class="item-clue">${esc(parts[0])}<b style="color:#B98B1C;">[ ___ ]</b>${esc(parts[1]||'')}</div>
+      <div class="choice-row">
+        <button class="choice-btn ${vals[i]==='Before'?'picked':''}" data-i="${i}" data-val="Before">Before</button>
+        <button class="choice-btn ${vals[i]==='After'?'picked':''}" data-i="${i}" data-val="After">After</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.choice-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      soundClick();
+      const i = btn.dataset.i;
+      el.querySelectorAll(`.choice-btn[data-i="${i}"]`).forEach(b=>b.classList.remove('picked'));
+      btn.classList.add('picked');
+    };
+  });
+}
+function collectBeforeAfter(q, el){
+  const values = q.data.items.map((_,i)=>{
+    const picked = el.querySelector(`.choice-btn.picked[data-i="${i}"]`);
+    return picked ? picked.dataset.val : null;
+  });
+  return {values};
+}
+function gradeBeforeAfter(q, ans){
+  const ok = q.data.items.every((it,i)=> ans.values[i] === it.answer);
+  return {ok};
+}
+
+function bodyMcq(q, el){
+  const saved = savedFor(q.id);
+  const vals = saved ? saved.values : q.data.items.map(()=>null);
+  el.innerHTML = q.data.items.map((it,qi)=>`
+    <div class="item-row">
+      <div class="item-clue">${qi+1}. ${esc(it.question)}</div>
+      <div class="mcq-opts">${it.options.map((opt,oi)=>`
+        <button class="opt-btn ${vals[qi]===oi?'picked':''}" data-qi="${qi}" data-oi="${oi}">${String.fromCharCode(65+oi)}. ${esc(opt)}</button>
+      `).join('')}</div>
+    </div>`).join('');
+  el.querySelectorAll('.opt-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      soundClick();
+      const qi = btn.dataset.qi;
+      el.querySelectorAll(`.opt-btn[data-qi="${qi}"]`).forEach(b=>b.classList.remove('picked'));
+      btn.classList.add('picked');
+    };
+  });
+}
+function collectMcq(q, el){
+  const values = q.data.items.map((_,qi)=>{
+    const picked = el.querySelector(`.opt-btn.picked[data-qi="${qi}"]`);
+    return picked ? parseInt(picked.dataset.oi) : null;
+  });
+  return {values};
+}
+function gradeMcq(q, ans){
+  const ok = q.data.items.every((it,i)=> ans.values[i] === it.answerIndex);
+  return {ok};
+}
+
+function bodyMatch(q, el){
+  const d = q.data;
+  const st = matchState[q.id];
+  if(!st.rightOrder) st.rightOrder = shuffled(d.right).map(([v,origIdx])=>({v, origIdx}));
+  if(!st.pairs) st.pairs = savedFor(q.id) ? savedFor(q.id).pairs : {}; // leftIdx -> rightSlot
+  el.innerHTML = `<div class="match-wrap">
+    <div class="match-col">${d.left.map((v,i)=>`<button class="match-chip" data-side="l" data-i="${i}">${esc(v)}</button>`).join('')}</div>
+    <div class="match-col">${st.rightOrder.map((r,slot)=>`<button class="match-chip" data-side="r" data-slot="${slot}">${esc(r.v)}</button>`).join('')}</div>
+  </div>`;
+  paintMatch(q, el);
+  el.querySelectorAll('.match-chip').forEach(chip=>{
+    chip.onclick = ()=>{
+      soundClick();
+      const side = chip.dataset.side;
+      if(side==='l'){
+        const i = parseInt(chip.dataset.i);
+        // if already paired, unpair
+        if(st.pairs[i]!==undefined){ delete st.pairs[i]; st.selectedLeft = null; }
+        else { st.selectedLeft = i; }
+      } else {
+        const slot = parseInt(chip.dataset.slot);
+        if(st.selectedLeft !== null && st.selectedLeft !== undefined){
+          // remove any existing pairing to this slot
+          Object.keys(st.pairs).forEach(k=>{ if(st.pairs[k]===slot) delete st.pairs[k]; });
+          st.pairs[st.selectedLeft] = slot;
+          st.selectedLeft = null;
+        }
+      }
+      paintMatch(q, el);
+    };
+  });
+}
+function paintMatch(q, el){
+  const st = matchState[q.id];
+  el.querySelectorAll('.match-chip[data-side="l"]').forEach(chip=>{
+    const i = parseInt(chip.dataset.i);
+    chip.classList.remove('selected','paired');
+    if(st.pairs[i]!==undefined) chip.classList.add('paired');
+    else if(st.selectedLeft === i) chip.classList.add('selected');
+  });
+  el.querySelectorAll('.match-chip[data-side="r"]').forEach(chip=>{
+    const slot = parseInt(chip.dataset.slot);
+    chip.classList.remove('selected','paired');
+    if(Object.values(st.pairs).includes(slot)) chip.classList.add('paired');
+  });
+}
+function collectMatch(q, el){
+  const st = matchState[q.id];
+  return {pairs: Object.assign({}, st.pairs), rightOrder: st.rightOrder};
+}
+function gradeMatch(q, ans){
+  const d = q.data;
+  const rightOrder = ans.rightOrder;
+  let ok = d.left.length === Object.keys(ans.pairs).length;
+  d.left.forEach((_,i)=>{
+    const slot = ans.pairs[i];
+    if(slot===undefined){ ok = false; return; }
+    const origIdx = rightOrder[slot].origIdx;
+    if(origIdx !== i) ok = false;
+  });
+  return {ok};
+}
+
+function bodyWordFind(q, el){
+  const d = q.data;
+  const st = matchState[q.id];
+  if(!st.found) st.found = savedFor(q.id) ? savedFor(q.id).found : {};
+  el.innerHTML = `
+    <div class="wf-grid" style="grid-template-columns:repeat(${d.grid[0].length}, 30px);">
+      ${d.grid.map(row=>row.map(l=>`<div class="wf-cell">${l}</div>`).join('')).join('')}
+    </div>
+    <div class="wf-words">${d.words.map(w=>`<button class="wf-word ${st.found[w]?'found':''}" data-w="${w}">${w}</button>`).join('')}</div>
+    <div style="text-align:center;font-size:12px;color:#7a6d43;font-weight:700;margin-top:6px;">Tap each word once you've spotted it in the grid.</div>
+  `;
+  el.querySelectorAll('.wf-word').forEach(btn=>{
+    btn.onclick = ()=>{
+      soundClick();
+      const w = btn.dataset.w;
+      st.found[w] = !st.found[w];
+      btn.classList.toggle('found', !!st.found[w]);
+    };
+  });
+}
+function collectWordFind(q, el){ return {found: Object.assign({}, matchState[q.id].found)}; }
+function gradeWordFind(q, ans){
+  const ok = q.data.words.every(w=> ans.found[w]);
+  return {ok};
+}
+
+/* ---------- collectors / graders dispatch ---------- */
+const COLLECTORS = {
+  series: collectSeries, columnmath: collectColumnMath, magicsquare: collectMagicSquare, equation: collectEquation,
+  shortanswer: collectShortAnswer, unscramble: collectUnscramble, riddlelist: collectRiddleList,
+  match: collectMatch, beforeafter: collectBeforeAfter, wordfind: collectWordFind, mcq: collectMcq, analogy: collectAnalogy
+};
+const GRADERS = {
+  series: gradeSeries, columnmath: gradeColumnMath, magicsquare: gradeMagicSquare, equation: gradeEquation,
+  shortanswer: gradeShortAnswer, unscramble: gradeUnscramble, riddlelist: gradeRiddleList,
+  match: gradeMatch, beforeafter: gradeBeforeAfter, wordfind: gradeWordFind, mcq: gradeMcq, analogy: gradeAnalogy
+};
+
+function checkQuestion(q){
+  const el = document.getElementById('qbody');
+  const collector = COLLECTORS[q.type];
+  const grader = GRADERS[q.type];
+  if(!collector || !grader) return;
+  const ans = collector(q, el);
+  const result = grader(q, ans);
+  PROGRESS.answers[q.id] = ans;
+  PROGRESS.correct[q.id] = !!result.ok;
+  persistProgress();
+  const banner = document.getElementById('fbBanner');
+  banner.className = 'feedback-banner show ' + (result.ok?'ok':'bad');
+  banner.textContent = result.ok ? '🌟 Great job — that\'s correct!' : '📝 Good try — check the highlighted parts and try again, or move on.';
+  if(result.ok){ soundCorrect(); if(Math.random()<0.4) fireConfetti(); } else { soundWrong(); }
+}
+
+/* ================================================================
+   RESULT SCREEN
+   ================================================================ */
+function renderResult(){
+  const total = QUESTIONS.length;
+  const correctCount = Object.values(PROGRESS.correct||{}).filter(Boolean).length;
+  const answered = Object.keys(PROGRESS.answers||{}).length;
+  const pct = total ? Math.round(correctCount/total*100) : 0;
+  let msg = 'Keep exploring — every attempt makes you stronger!';
+  if(pct>=90) msg = 'Outstanding! You conquered the whole map!';
+  else if(pct>=70) msg = 'Great work, explorer — most islands cleared!';
+  else if(pct>=40) msg = 'Nice progress — a few more islands to go.';
+
+  root.innerHTML = `
+  <div class="screen">
+    <div class="topbar"><button class="btn btn-icon" id="homeBtn">🏠</button><div></div><div></div></div>
+    <div class="trophy">${pct>=70?'🏆':pct>=40?'🎖️':'🧭'}</div>
+    <div style="text-align:center;">
+      <div class="score-big">${correctCount} / ${total}</div>
+      <div style="color:var(--text-dim); font-weight:700;">${msg}</div>
+    </div>
+    <div class="stat-row" style="margin-top:18px;">
+      <div class="stat-chip"><b>${answered}</b><span>Attempted</span></div>
+      <div class="stat-chip"><b>${pct}%</b><span>Accuracy</span></div>
+      <div class="stat-chip"><b>${total-answered}</b><span>Remaining</span></div>
+    </div>
+    <div class="menu-row" style="margin-top:16px;">
+      <button class="btn btn-primary" id="reviewBtn">Review Islands</button>
+      <button class="btn btn-ghost" id="restartBtn2">↺ Restart</button>
+    </div>
+    <div class="review-list" id="reviewList"></div>
+  </div>`;
+  document.getElementById('homeBtn').onclick = ()=>go('home');
+  document.getElementById('reviewBtn').onclick = ()=>{ document.getElementById('reviewList').scrollIntoView({behavior:'smooth'}); };
+  document.getElementById('restartBtn2').onclick = ()=>{
+    if(confirm('Restart your journey? This clears your answers.')){
+      PROGRESS = {answers:{}, correct:{}, currentIndex:0}; persistProgress(); go('home');
+    }
+  };
+  document.getElementById('reviewList').innerHTML = QUESTIONS.map((q,i)=>{
+    const a = PROGRESS.answers[q.id];
+    const ok = PROGRESS.correct[q.id];
+    const status = !a ? 'Not attempted' : (ok ? 'Correct' : 'Try again');
+    return `<div class="review-row" data-idx="${i}" style="cursor:pointer;">
+      <span>${esc(q.number)} · ${esc(q.title)}</span>
+      <span class="${!a?'':(ok?'tag-ok':'tag-bad')}">${status}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('reviewList').querySelectorAll('.review-row').forEach(row=>{
+    row.onclick = ()=>{ quizIdx = parseInt(row.dataset.idx); PROGRESS.currentIndex = quizIdx; persistProgress(); go('quiz'); };
+  });
+}
+
+/* ================================================================
+   SETTINGS
+   ================================================================ */
+function renderSettings(){
+  root.innerHTML = `
+  <div class="screen">
+    <div class="topbar"><button class="btn btn-icon" id="backBtn">←</button><h2 style="color:#fff;font-size:19px;">Settings</h2><div></div></div>
+    <div class="settings-list">
+      <div class="setting-row"><b>Sound effects</b><button class="switch ${SETTINGS.sound?'on':''}" id="soundSwitch"></button></div>
+      <div class="setting-row"><b>Read questions aloud</b><button class="switch ${SETTINGS.speech?'on':''}" id="speechSwitch"></button></div>
+    </div>
+    <h3 style="color:#fff; font-size:15px; margin:20px 0 8px;">Change Passcodes</h3>
+    <div class="field"><label>Student passcode (to open the app)</label><input id="pinA" value="${esc(SETTINGS.studentPin)}"></div>
+    <div class="field"><label>Admin passcode (to manage questions)</label><input id="pinB" value="${esc(SETTINGS.adminPin)}"></div>
+    <button class="btn btn-gold" id="savePins">Save Passcodes</button>
+
+    <h3 style="color:#fff; font-size:15px; margin:22px 0 8px;">Data</h3>
+    <div class="menu-row">
+      <button class="btn btn-ghost" id="exportBtn">⬇ Export Questions (JSON)</button>
+    </div>
+    <div class="menu-row">
+      <button class="btn btn-ghost" id="resetBtn">↺ Reset to Original 28 Activities</button>
+    </div>
+  </div>`;
+  document.getElementById('backBtn').onclick = ()=>go('home');
+  document.getElementById('soundSwitch').onclick = (e)=>{ SETTINGS.sound=!SETTINGS.sound; persistSettings(); e.target.classList.toggle('on', SETTINGS.sound); };
+  document.getElementById('speechSwitch').onclick = (e)=>{ SETTINGS.speech=!SETTINGS.speech; persistSettings(); e.target.classList.toggle('on', SETTINGS.speech); };
+  document.getElementById('savePins').onclick = ()=>{
+    const a = document.getElementById('pinA').value.trim();
+    const b = document.getElementById('pinB').value.trim();
+    if(a) SETTINGS.studentPin = a;
+    if(b) SETTINGS.adminPin = b;
+    persistSettings();
+    toast('Passcodes updated');
+  };
+  document.getElementById('exportBtn').onclick = ()=>{
+    const blob = new Blob([JSON.stringify(QUESTIONS,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'digital-activity-portal-questions.json'; a.click();
+    URL.revokeObjectURL(url);
+  };
+  document.getElementById('resetBtn').onclick = ()=>{
+    if(confirm('Replace all current activities with the original 28? This cannot be undone.')){
+      QUESTIONS = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+      persistQuestions();
+      toast('Restored the original activity set');
+    }
+  };
+}
+
+/* ================================================================
+   ADMIN — add / edit / delete questions
+   ================================================================ */
+const TEMPLATES = {
+  mcq: {number:"Q29", title:"New Quiz Question", type:"mcq", instruction:"Choose the correct option.",
+    data:{items:[{question:"Your question here?", options:["Option A","Option B","Option C"], answerIndex:0}]}},
+  shortanswer: {number:"Q29", title:"New Fill-in-the-Blank", type:"shortanswer", instruction:"Fill in the blank.",
+    data:{items:[{prompt:"Sample sentence with a ___ blank.", answer:"missing"}]}},
+  unscramble: {number:"Q29", title:"New Word Scramble", type:"unscramble", instruction:"Rearrange the letters to spell the word.",
+    data:{items:[{clue:"Clue goes here", scrambled:"TLESRET", answer:"LETTERS"}]}},
+  riddlelist: {number:"Q29", title:"New Riddle", type:"riddlelist", instruction:"Answer each clue.",
+    data:{items:[{clue:"Clue goes here", answer:"Answer"}]}},
+  beforeafter: {number:"Q29", title:"New Before/After", type:"beforeafter", instruction:"Choose the correct word.",
+    data:{items:[{prompt:"Sample sentence ___ event.", answer:"Before"}]}},
+  equation: {number:"Q29", title:"New Mental Math", type:"equation", instruction:"Work out the answer.",
+    data:{expr:"10 + 5", answer:15}},
+  analogy: {number:"Q29", title:"New Analogy", type:"analogy", instruction:"Complete the analogy.",
+    data:{a:"Sun", b:"Day", c:"Moon", answer:"Night"}},
+  series: {number:"Q29", title:"New Number Pattern", type:"series", instruction:"Find the missing number.",
+    data:{items:[2,4,null,8,10], answer:6}},
+  columnmath: {number:"Q29", title:"New Column Sum", type:"columnmath", instruction:"Add the numbers.",
+    data:{op:"+", top:[1,2,3], bottom:[1,1,1], answers:[1,3,4]}},
+  magicsquare: {number:"Q29", title:"New Addition Square", type:"magicsquare", instruction:"Fill each blank.",
+    data:{a:10,b:5,c:2,d:3}},
+  match: {number:"Q29", title:"New Matching Activity", type:"match", instruction:"Tap to match the pairs.",
+    data:{left:["Item 1","Item 2"], right:["Match 1","Match 2"]}},
+  wordfind: {number:"Q29", title:"New Word Search", type:"wordfind", instruction:"Find the hidden words.",
+    data:{grid:[["C","A","T"],["D","O","G"]], words:["CAT","DOG"]}}
+};
+
+function renderAdmin(){
+  if(!ADMIN_UNLOCKED){
+    root.innerHTML = `
+    <div class="lock-wrap">
+      <div style="font-size:48px;">🛠️</div>
+      <div class="lock-title" style="font-size:22px;">Admin Access</div>
+      <div class="lock-sub">Enter the admin passcode to add, edit, or delete activities.</div>
+      <input id="adminPinField" class="pin-input" style="font-size:22px; letter-spacing:6px;" maxlength="12" placeholder="admin passcode">
+      <div class="lock-error" id="adminErr"></div>
+      <button class="btn btn-gold" id="adminEnter">Unlock</button>
+      <button class="btn btn-ghost" id="adminCancel">Cancel</button>
+    </div>`;
+    document.getElementById('adminCancel').onclick = ()=>go('home');
+    document.getElementById('adminEnter').onclick = ()=>{
+      const v = document.getElementById('adminPinField').value;
+      if(v === SETTINGS.adminPin){ ADMIN_UNLOCKED = true; render(); }
+      else { document.getElementById('adminErr').textContent = 'Incorrect admin passcode.'; soundWrong(); }
+    };
+    return;
+  }
+
+  root.innerHTML = `
+  <div class="screen">
+    <div class="topbar"><button class="btn btn-icon" id="backBtn">←</button><h2 style="color:#fff;font-size:19px;">Manage Activities</h2><div></div></div>
+    <div class="help-note">You can add new activities, edit existing ones (as structured data), delete ones you no longer need, or import/export the whole set as a JSON file to back up or share with another device.</div>
+    <div class="menu-row">
+      <button class="btn btn-primary" id="addBtn">+ Add Activity</button>
+      <button class="btn btn-ghost" id="importBtn">⬆ Import JSON</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none;">
+    <div class="admin-list" id="adminList"></div>
+  </div>`;
+  document.getElementById('backBtn').onclick = ()=>go('home');
+  document.getElementById('addBtn').onclick = ()=>openEditor(null);
+  document.getElementById('importBtn').onclick = ()=>document.getElementById('importFile').click();
+  document.getElementById('importFile').onchange = (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const data = JSON.parse(reader.result);
+        if(!Array.isArray(data)) throw new Error('File must contain a list of activities.');
+        QUESTIONS = data; persistQuestions(); toast('Imported '+data.length+' activities'); render();
+      }catch(err){ alert('Could not import file: '+err.message); }
+    };
+    reader.readAsText(file);
+  };
+
+  const list = document.getElementById('adminList');
+  list.innerHTML = QUESTIONS.map((q,i)=>`
+    <div class="admin-row">
+      <div class="meta"><b>${esc(q.number)} · ${esc(q.title)}</b><span>${typeLabel(q.type)}</span></div>
+      <div class="admin-actions">
+        <button class="btn btn-sm btn-ghost" data-act="edit" data-i="${i}">Edit</button>
+        <button class="btn btn-sm btn-ghost" data-act="del" data-i="${i}" style="color:var(--coral);">Delete</button>
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('[data-act="edit"]').forEach(b=> b.onclick = ()=> openEditor(parseInt(b.dataset.i)));
+  list.querySelectorAll('[data-act="del"]').forEach(b=> b.onclick = ()=>{
+    const i = parseInt(b.dataset.i);
+    if(confirm('Delete "'+QUESTIONS[i].number+' · '+QUESTIONS[i].title+'"? This cannot be undone.')){
+      QUESTIONS.splice(i,1); persistQuestions(); render();
+    }
+  });
+}
+
+function openEditor(idx){
+  const isNew = idx===null;
+  const existing = isNew ? null : QUESTIONS[idx];
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+  <div class="modal">
+    <h3>${isNew ? 'Add New Activity' : 'Edit Activity'}</h3>
+    <div class="help-note">
+      Choose a type template to start from a ready-made example, then adjust the fields in the box below.
+      Every activity needs: <code>number</code>, <code>title</code>, <code>type</code>, <code>instruction</code>, and a <code>data</code> object matching its type.
+    </div>
+    ${isNew ? `<div class="field"><label>Start from template</label>
+      <select id="tplSelect">
+        ${Object.keys(TEMPLATES).map(t=>`<option value="${t}">${typeLabel(t)}</option>`).join('')}
+      </select></div>` : ''}
+    <div class="errbox" id="editorErr"></div>
+    <div class="field"><label>Activity data (JSON)</label>
+      <textarea id="jsonEditor" spellcheck="false"></textarea>
+    </div>
+    <div class="menu-row">
+      <button class="btn btn-ghost" id="cancelEdit">Cancel</button>
+      <button class="btn btn-primary" id="saveEdit">${isNew?'Add Activity':'Save Changes'}</button>
+    </div>
+  </div>`;
+  document.getElementById('modalRoot').appendChild(backdrop);
+
+  const textarea = backdrop.querySelector('#jsonEditor');
+  function loadTemplate(t){
+    const tpl = JSON.parse(JSON.stringify(TEMPLATES[t]));
+    tpl.id = Date.now();
+    tpl.number = 'Q' + (QUESTIONS.length + 1);
+    textarea.value = JSON.stringify(tpl, null, 2);
+  }
+  if(isNew){
+    const sel = backdrop.querySelector('#tplSelect');
+    loadTemplate(sel.value);
+    sel.onchange = ()=>loadTemplate(sel.value);
+  } else {
+    textarea.value = JSON.stringify(existing, null, 2);
+  }
+
+  backdrop.querySelector('#cancelEdit').onclick = ()=> backdrop.remove();
+  backdrop.querySelector('#saveEdit').onclick = ()=>{
+    const errBox = backdrop.querySelector('#editorErr');
+    let parsed;
+    try{ parsed = JSON.parse(textarea.value); }
+    catch(e){ errBox.className='errbox show'; errBox.textContent = 'That is not valid JSON: '+e.message; return; }
+    const required = ['number','title','type','data'];
+    const missing = required.filter(k=> !(k in parsed));
+    if(missing.length){ errBox.className='errbox show'; errBox.textContent = 'Missing required field(s): '+missing.join(', '); return; }
+    if(!GRADERS[parsed.type]){ errBox.className='errbox show'; errBox.textContent = 'Unknown type "'+parsed.type+'". Valid types: '+Object.keys(GRADERS).join(', '); return; }
+    if(!parsed.id) parsed.id = isNew ? Date.now() : existing.id;
+    if(isNew){ QUESTIONS.push(parsed); } else { QUESTIONS[idx] = parsed; }
+    persistQuestions();
+    backdrop.remove();
+    toast(isNew ? 'Activity added' : 'Activity updated');
+    render();
+  };
+}
+
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2200);
+}
+
+/* ================================================================
+   BOOT
+   ================================================================ */
+go('lock');
+
+/* Register the service worker so the portal keeps working offline once loaded once.
+   This only runs when the app is hosted for real (http/https) — it silently
+   does nothing inside the Claude artifact preview or a file:// preview. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* ignore in unsupported contexts */ });
+  });
+}
+</script>
+</body>
+</html>
